@@ -21,3 +21,11 @@ env/
 # Logs / temp
 *.log
 *.tmp
+
+# LaTeX derleme artıkları
+*.aux
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
