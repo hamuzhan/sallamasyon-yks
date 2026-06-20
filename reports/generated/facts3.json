@@ -1,0 +1,7 @@
+{
+  "best": "PermCycle",
+  "best_acc": 23.37,
+  "oracle": 25.09,
+  "oracle_perm": "AEDCB",
+  "random": 20.01
+}

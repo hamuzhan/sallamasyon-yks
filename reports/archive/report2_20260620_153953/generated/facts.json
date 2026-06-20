@@ -1,0 +1,10 @@
+{
+  "n_train": 2034,
+  "chi_stat": 3.35,
+  "chi_anlamli": false,
+  "ardisik": 13.14,
+  "max_run": 3,
+  "best_model": "GRU",
+  "best_acc": 24.88,
+  "random_acc": 19.93
+}

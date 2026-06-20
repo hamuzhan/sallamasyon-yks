@@ -25,7 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "models"))
 
 from data_utils import (  # noqa: E402
-    CIDX, group_sequences, load_eval, load_train, make_tabular, subject_vocab,
+    CIDX, group_sequences, load_eval, load_train, make_tabular, sid_of,
+    subject_vocab,
 )
 from baselines import ALL_BASELINES  # noqa: E402
 from nets import BOS, MLP, SEQ_MODELS  # noqa: E402
@@ -128,7 +129,7 @@ def train_seq(ModelCls, train_recs, eval_recs, svocab, epochs=300) -> dict:
     tr = group_sequences(train_recs)
     ev = group_sequences(eval_recs)
     for s in tr + ev:
-        s["_sid"] = svocab[s["subject"]]
+        s["_sid"] = sid_of(svocab, s["subject"])
     max_len = max(len(s["labels"]) for s in tr + ev)
 
     toks, tgts, subs = pad_batch(tr, max_len)
@@ -186,7 +187,8 @@ def main():
         print(f"GPU: {torch.cuda.get_device_name(0)}")
     train_recs = load_train()
     eval_recs = load_eval()
-    svocab = subject_vocab(train_recs, eval_recs)
+    # SIZINTI ÖNLEME: ders sözlüğü yalnızca train'den türetilir.
+    svocab = subject_vocab(train_recs)
     print(f"Train kayıt: {len(train_recs)}  Eval(2025) kayıt: {len(eval_recs)}")
     print(f"Dersler: {list(svocab)}\n")
 

@@ -56,12 +56,23 @@ def group_sequences(recs: list[dict]) -> list[dict]:
     return out
 
 
-# Ders adı -> indeks (özellik için)
-def subject_vocab(*recsets: list[dict]) -> dict[str, int]:
-    subs = set()
-    for recs in recsets:
-        subs |= {r["ders"] for r in recs}
-    return {s: i for i, s in enumerate(sorted(subs))}
+# Ders adı -> indeks (özellik için).
+# SIZINTI ÖNLEME: vocab YALNIZCA train kayıtlarından türetilmelidir.
+# Eval'de görülmeyen bir ders olursa UNK_SUBJECT'e düşürülür.
+UNK_SUBJECT = "<UNK>"
+
+
+def subject_vocab(train_recs: list[dict]) -> dict[str, int]:
+    """Ders sözlüğü SADECE train'den. Son indeks UNK için ayrılır."""
+    subs = sorted({r["ders"] for r in train_recs})
+    vocab = {s: i for i, s in enumerate(subs)}
+    vocab[UNK_SUBJECT] = len(vocab)  # bilinmeyen ders için ayrı indeks
+    return vocab
+
+
+def sid_of(svocab: dict[str, int], subject: str) -> int:
+    """Sızıntısız ders indeksi: bilinmeyense UNK indeksine düşer."""
+    return svocab.get(subject, svocab[UNK_SUBJECT])
 
 
 PAD = 5  # önceki-şık özelliği için "yok" değeri (0..4 = A..E, 5 = baş)
@@ -76,7 +87,7 @@ def make_tabular(recs: list[dict], svocab: dict[str, int]) -> tuple[np.ndarray, 
     seqs = group_sequences(recs)
     X, y = [], []
     for s in seqs:
-        sid = svocab[s["subject"]]
+        sid = sid_of(svocab, s["subject"])
         labels = s["labels"]
         qnos = s["qnos"]
         maxq = max(qnos) if qnos else 1

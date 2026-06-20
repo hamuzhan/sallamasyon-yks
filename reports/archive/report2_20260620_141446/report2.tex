@@ -1,0 +1,183 @@
+\documentclass[11pt]{article}
+
+\usepackage{fontspec}
+\usepackage{amsmath}
+\usepackage{polyglossia}
+\setmainlanguage{turkish}
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+\graphicspath{{figures/}}
+
+\title{\textbf{YKS ``Sallamasyon'' II:\\
+Şık Dengeleme Sinyali ve Sızıntısız Imputation Değerlendirmesi}}
+\author{sallamasyon-yks \\ \small NVIDIA GH200 (Grace 72-core + H100) üzerinde}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Bu ikinci raporda, YKS cevap anahtarlarında ilk raporun yakaladığı tek
+sinyalin (ardışık tekrar kaçınması) ötesine geçerek daha güçlü ve pratik
+bir yapı keşfediyoruz: \textbf{şık dengeleme}. Her sınav testinde A--E
+şıklarının düzgüne çok yakın biçimde dağıldığını (test-içi şık-sayısı
+standart sapması, gerçek/rastgele oranı $\approx 0.54$); ayrıca tekrar
+kaçınmasının yalnızca komşuda değil 2--3 soruluk bir pencerede sürdüğünü
+gösteriyoruz. Bu sinyali sömürmek için gerçek sallamasyon senaryosuna uygun,
+\textbf{sızıntısız bir imputation} (boşluk doldurma) değerlendirme protokolü
+kuruyoruz: bir testte soruların bir kısmı bilinir, kalanı tahmin edilir ve
+yalnızca gizli pozisyonlardaki isabet ölçülür. Tüm modeller yalnızca
+2018--2024'te eğitilir; 2025 sınavı kesinlikle dokunulmamış test setidir.
+Dengeleme tabanlı \textbf{Hybrid} model, bilinen oran $\%90$ iken rastgele
+tahmine göre \textbf{$+12.97$ puan} kazanç sağlar. İlginç biçimde,
+GH200 üzerinde eğitilen BERT-tarzı derin bir model bu basit istatistiksel
+modeli geçememektedir.
+\end{abstract}
+
+\section{Motivasyon ve İlk Rapordan Farkı}
+İlk raporda şık dağılımının düzgüne yakın olduğunu ve tek sömürülebilir
+sinyalin ardışık tekrar kaçınması ($\%13$, rastgele $\%20$) olduğunu
+bulmuştuk; en iyi model rastgelenin yalnızca birkaç puan üzerindeydi. Bu
+raporda iki ilerleme var: (i) daha güçlü bir yapısal sinyal (\emph{dengeleme})
+keşfediyoruz, (ii) bunu gerçek sınav davranışına uyan ve veri sızıntısına
+karşı titizlikle korunan bir değerlendirme ile ölçüyoruz.
+
+\section{Sızıntı (Data Leakage) Güvencesi}
+Sonuçların geçerliliği için 2025 verisinin hiçbir biçimde eğitime
+karışmaması kritiktir. Aşağıdaki garantiler bir doğrulama scripti
+(\texttt{check\_leakage.py}) ile otomatik olarak teyit edilmiştir:
+\begin{itemize}
+  \item Eğitim seti (\texttt{all\_answers.json}) yalnızca 2018--2024 içerir;
+  2025 \emph{yoktur}.
+  \item Ders sözlüğü (\texttt{subject\_vocab}) yalnızca eğitimden türetilir;
+  değerlendirmede görülmeyen bir ders olursa \texttt{<UNK>}'e düşürülür.
+  \item Tüm modeller \texttt{fit()} ile yalnızca eğitimi görür.
+  \item Imputation sırasında model yalnızca \emph{bilinen} pozisyonların
+  gerçek şıkkını görür; \emph{gizli} pozların şıkkına asla erişemez.
+  \item Hybrid modelin $\alpha$ ağırlığı yalnızca eğitim içi başarıyla
+  seçilir (2025 kullanılmaz).
+\end{itemize}
+
+\section{Keşfedilen Sinyaller (yalnızca eğitim verisi)}
+Tablo~\ref{tab:signals} bulguları özetler. En güçlü sinyal şık
+dengelemedir: her testte 5 şıkkın sayısı neredeyse eşittir
+(Şekil~\ref{fig:bal}). Tekrar kaçınması komşuluğun ötesine taşar
+(Şekil~\ref{fig:gap}): aynı şık 2--3 soru arayla da beklenenden seyrek
+görülür.
+
+\begin{table}[H]
+\centering
+\caption{Eğitim (2018--2024) üzerinde keşfedilen sinyaller.}
+\label{tab:signals}
+\begin{tabular}{lll}
+\toprule
+Sinyal & Ölçüm & Güç \\
+\midrule
+\input{generated/signal_table.tex}
+\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{dengeleme_std.png}
+\caption{Şık dengeleme sinyali. Mavi: gerçek test-içi şık-sayısı standart
+sapması (yıl bazlı). Kırmızı kesikli: aynı uzunlukta rastgele dizilerin
+beklenen std'i. Gerçek değerler tutarlı biçimde çok daha düşüktür; yani
+şıklar dengeli dağıtılır.}
+\label{fig:bal}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{gap_tekrar.png}
+\caption{Pencere-bazlı tekrar kaçınması. Aynı şıkkın $g$ soru arayla tekrar
+etme oranı; kısa mesafelerde ($g=1,2,3$) rastgele $\%20$'nin altındadır.}
+\label{fig:gap}
+\end{figure}
+
+\section{Sallamasyon (Imputation) Değerlendirmesi}
+Gerçek senaryo: öğrenci soruların bir kısmını \emph{doğru bilir}, kalanını
+\emph{boş bırakıp tahmin eder}. Her test için soruların rastgele $\%k$'sı
+``bilinen'' kabul edilir (gerçek şıkkı modele verilir), kalanı gizlenir.
+Model gizli pozisyonları tahmin eder; yalnızca bu pozisyonlardaki isabet
+ölçülür. Her ayar $300$ rastgele maskeleme denemesiyle ortalanır.
+
+\begin{table}[H]
+\centering
+\caption{Gizli pozisyon doğruluğu (\%), 2025 test seti. Her sütun farklı
+bilinen oranı. Kalın: o sütunun en iyisi.}
+\label{tab:imput}
+\begin{tabular}{lcccc}
+\toprule
+Model & k=50\% & k=70\% & k=85\% & k=90\% \\
+\midrule
+\input{generated/imput_table.tex}
+\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Rastgele tahmine karşı kazanç (puan), 2025.}
+\label{tab:gain}
+\begin{tabular}{lcccc}
+\toprule
+Model & k=50\% & k=70\% & k=85\% & k=90\% \\
+\midrule
+\input{generated/gain_table.tex}
+\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{imputation_basari.png}
+\caption{Bilinen oran arttıkça modellerin gizli-pozisyon başarısı. Dengeleme
+ve Hybrid, bilinen oran yükseldikçe belirgin biçimde ayrışır; çünkü ne kadar
+çok cevap bilinirse kalan ``şık bütçesi'' o kadar kısıtlanır.}
+\label{fig:imput}
+\end{figure}
+
+\section{Tartışma}
+\begin{itemize}
+  \item \textbf{Dengeleme, kazancın asıl kaynağıdır.} Markov (komşuluk)
+  tek başına yalnızca $\sim 1$ puan katarken, dengeleme bilinen oran $\%90$'da
+  $+10.6$, Hybrid $+12.97$ puan sağlar. Sezgi: bir testte 5 şık eşit
+  dağıldığından, bilinen cevaplar arttıkça kalan boşlukların hangi şık
+  olması gerektiği giderek belirginleşir.
+  \item \textbf{Etki, bilinen orana çok duyarlıdır.} Az soru bilen biri için
+  kazanç küçüktür ($\%50$'de $+2.5$); çoğu soruyu bilip birkaç boşluğu
+  sallayan biri için büyüktür ($\%90$'da $+13$). Bu, gerçek sınav davranışına
+  tam oturur.
+  \item \textbf{Daha karmaşık her zaman daha iyi değildir.} GH200 üzerinde
+  eğitilen BERT-tarzı maskeli Transformer, açık formüllü Hybrid modelin
+  gerisinde kalır. Küçük veri ($56$ test dizisi) derin modelin dengeleme
+  kısıtını güvenilir öğrenmesini engeller; elle kodlanmış bütçe kısıtı daha
+  güçlüdür.
+\end{itemize}
+
+\section{Sonuç}
+Şık dengeleme, YKS cevap anahtarlarındaki en güçlü ve en pratik yapısal
+sinyaldir. Pratik öneri nettir: \emph{bildiğin soruları işaretledikten
+sonra, kalan boşlukları o testte henüz az çıkmış şıklara dağıt}. Bu strateji,
+özellikle soruların çoğunu bilen bir aday için kör rastgeleye göre $10$
+puanı aşan bir beklenen kazanç sağlar---ve tüm bu kazanç, 2025'e hiç
+bakmadan, yalnızca geçmiş yılların yapısından öğrenilmiştir.
+
+\paragraph{Tekrarlanabilirlik.} İşlem hattı: \texttt{check\_leakage.py}
+$\rightarrow$ \texttt{analyze\_signals.py} $\rightarrow$
+\texttt{eval\_impute.py} $\rightarrow$ \texttt{build\_report2.py}.
+
+\end{document}

@@ -1,0 +1,16 @@
+{
+  "trials": 300,
+  "best_per_known": {
+    "0": "GlobalFreq",
+    "50": "SmartHybrid",
+    "70": "SmartHybrid",
+    "85": "Unified",
+    "90": "Unified"
+  },
+  "best90_model": "Unified",
+  "best90_gain": 13.42,
+  "best50_model": "SmartHybrid",
+  "best50_gain": 3.65,
+  "balance_ratio": 0.536,
+  "runlength_2": 6.2
+}

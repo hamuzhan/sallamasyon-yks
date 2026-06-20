@@ -1,0 +1,7 @@
+{
+  "hybrid_alpha": 0.2,
+  "trials": 300,
+  "best90": "Hybrid",
+  "hybrid_gain90": 12.97,
+  "balance_ratio": 0.536
+}

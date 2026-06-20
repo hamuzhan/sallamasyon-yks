@@ -1,0 +1,15 @@
+{
+  "trials": 300,
+  "best_per_known": {
+    "50": "SmartHybrid",
+    "70": "SmartHybrid",
+    "85": "Unified",
+    "90": "Hybrid"
+  },
+  "best90_model": "Hybrid",
+  "best90_gain": 12.97,
+  "best50_model": "SmartHybrid",
+  "best50_gain": 3.66,
+  "balance_ratio": 0.536,
+  "runlength_2": 6.2
+}
