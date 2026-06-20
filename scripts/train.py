@@ -100,6 +100,7 @@ def train_mlp(train_recs, eval_recs, svocab, epochs=200) -> dict:
     return {
         "name": "MLP", "type": "nn", "accuracy": acc,
         "train_accuracy": tracc, "best_eval": best, "n": len(yev),
+        "_model": model, "_init": {"n_subjects": len(svocab)},
     }
 
 
@@ -174,6 +175,7 @@ def train_seq(ModelCls, train_recs, eval_recs, svocab, epochs=300) -> dict:
         "name": ModelCls.name, "type": "nn", "accuracy": acc,
         "train_accuracy": tracc, "best_eval": best, "n": int((etgts != -100).sum()),
         "per_subject": {k: v[0] / v[1] for k, v in per.items()},
+        "_model": model, "_init": {"n_subjects": len(svocab), "max_len": max_len},
     }
 
 
@@ -200,10 +202,17 @@ def main():
         results.append(r)
         print(f"[baseline] {r['name']:12s} acc={r['accuracy']*100:5.2f}%")
 
-    # NN modelleri: N_SEEDS tohum, ortalama±std
+    ckpt_dir = ROOT / "checkpoints"
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+
+    # NN modelleri: N_SEEDS tohum, ortalama±std; en iyi tohumun ağırlığı kaydedilir
     def run_multi(label, fn):
         accs, tracc, best = [], [], []
         per_sub_acc = {}
+        best_acc = -1.0
+        best_state = None
+        best_init = None
+        best_seed = None
         t0 = time.time()
         for seed in range(N_SEEDS):
             set_seed(seed)
@@ -213,6 +222,24 @@ def main():
             best.append(r["best_eval"])
             for k, v in r.get("per_subject", {}).items():
                 per_sub_acc.setdefault(k, []).append(v)
+            if r["accuracy"] > best_acc:
+                best_acc = r["accuracy"]
+                best_state = {k: v.cpu() for k, v in r["_model"].state_dict().items()}
+                best_init = r["_init"]
+                best_seed = seed
+        # en iyi tohumun checkpoint'i
+        ckpt_path = ckpt_dir / f"{label.lower()}.pt"
+        torch.save(
+            {
+                "model": label,
+                "state_dict": best_state,
+                "init_kwargs": best_init,
+                "seed": best_seed,
+                "eval_accuracy": best_acc,
+                "subject_vocab": svocab,
+            },
+            ckpt_path,
+        )
         res = {
             "name": label, "type": "nn",
             "accuracy": float(np.mean(accs)), "std": float(np.std(accs)),
@@ -222,21 +249,27 @@ def main():
             "n": r["n"], "seeds": N_SEEDS,
             "per_subject": {k: float(np.mean(v)) for k, v in per_sub_acc.items()},
             "time_s": round(time.time() - t0, 1),
+            "checkpoint": str(ckpt_path.relative_to(ROOT)),
+            "best_seed": best_seed,
         }
         results.append(res)
         print(f"[nn]       {label:12s} acc={res['accuracy']*100:5.2f}%"
               f"±{res['std']*100:.2f} (max {res['accuracy_max']*100:.1f}, "
-              f"train {res['train_accuracy']*100:.1f}%, {res['time_s']}s)")
+              f"train {res['train_accuracy']*100:.1f}%, {res['time_s']}s) "
+              f"-> {ckpt_path.name}")
         return res
 
     run_multi("MLP", lambda: train_mlp(train_recs, eval_recs, svocab))
     for name, Cls in SEQ_MODELS.items():
         run_multi(name, lambda Cls=Cls: train_seq(Cls, train_recs, eval_recs, svocab))
 
+    # results.json'a _model/_init gibi serileştirilemeyen alanları sokmuyoruz
     out = ROOT / "reports" / "results.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\nSonuçlar -> {out}")
+    clean = [{k: v for k, v in r.items() if not k.startswith("_")} for r in results]
+    out.write_text(json.dumps(clean, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\nSonuçlar    -> {out}")
+    print(f"Checkpointler -> {ckpt_dir}/")
 
 
 if __name__ == "__main__":

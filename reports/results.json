@@ -71,7 +71,9 @@
     "n": 291,
     "seeds": 10,
     "per_subject": {},
-    "time_s": 3.1
+    "time_s": 3.1,
+    "checkpoint": "checkpoints/mlp.pt",
+    "best_seed": 2
   },
   {
     "name": "CNN",
@@ -92,7 +94,9 @@
       "Sosyal2": 0.19347826086956524,
       "Edebiyat-Sosyal1": 0.2
     },
-    "time_s": 4.1
+    "time_s": 4.2,
+    "checkpoint": "checkpoints/cnn.pt",
+    "best_seed": 1
   },
   {
     "name": "GRU",
@@ -113,7 +117,9 @@
       "Sosyal2": 0.31304347826086953,
       "Edebiyat-Sosyal1": 0.27999999999999997
     },
-    "time_s": 4.7
+    "time_s": 4.7,
+    "checkpoint": "checkpoints/gru.pt",
+    "best_seed": 5
   },
   {
     "name": "Transformer",
@@ -134,6 +140,8 @@
       "Sosyal2": 0.30652173913043473,
       "Edebiyat-Sosyal1": 0.1725
     },
-    "time_s": 9.7
+    "time_s": 9.8,
+    "checkpoint": "checkpoints/transformer.pt",
+    "best_seed": 2
   }
 ]
